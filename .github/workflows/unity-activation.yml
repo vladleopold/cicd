@@ -1,0 +1,51 @@
+name: "Unity: запрос файла активации"
+run-name: "Файл активации Unity: ${{ inputs.unity_version || '6000.0.71f1' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      unity_version:
+        description: "Версия Unity для ALF файла"
+        required: true
+        default: 6000.0.71f1
+
+jobs:
+  request-activation-file:
+    name: "Создать Unity ALF файл"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Освободить место на runner"
+        shell: bash
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/lib/android/sdk/ndk
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          docker system prune -af || true
+          df -h
+
+      - name: "Создать файл ручной активации Unity"
+        shell: bash
+        env:
+          UNITY_VERSION: ${{ inputs.unity_version }}
+        run: |
+          mkdir -p activation
+          docker run --rm \
+            --workdir /github/workspace \
+            --volume "$PWD:/github/workspace" \
+            "unityci/editor:ubuntu-${UNITY_VERSION}-android-3" \
+            /opt/unity/Editor/Unity \
+              -batchmode \
+              -nographics \
+              -quit \
+              -createManualActivationFile \
+              -logFile /github/workspace/activation/unity-activation.log || true
+          find . -name '*.alf' -print -exec cp {} "activation/Unity_v${UNITY_VERSION}.alf" \;
+          test -f "activation/Unity_v${UNITY_VERSION}.alf"
+
+      - name: "Загрузить файл активации"
+        uses: actions/upload-artifact@v4
+        with:
+          name: Unity_v${{ inputs.unity_version }}_alf
+          path: activation/*
+          if-no-files-found: error

@@ -1,0 +1,131 @@
+name: "Android: запуск сборки APK/AAB"
+run-name: "Запуск Android: ${{ github.event.client_payload.app_name || inputs.app_name || 'игра' }} / ${{ github.event.client_payload.package_name || inputs.package_name || 'пакет' }} / ${{ github.event.client_payload.build_format || inputs.build_format || 'apk' }}"
+
+on:
+  repository_dispatch:
+    types:
+      - android-package-release
+      - google-play-release
+  workflow_dispatch:
+    inputs:
+      game_repository:
+        description: "Приватный репозиторий игры"
+        required: true
+        default: zey-win/plinko
+      game_ref:
+        description: "Ветка, тег или commit игры"
+        required: true
+        default: main
+      package_name:
+        description: "Имя Android-пакета"
+        required: true
+        default: com.playsocialgames.plinkofun
+      app_name:
+        description: "Название игры в Android"
+        required: true
+        default: Plinko Real Money
+      icon_png_path:
+        description: "Путь к PNG-иконке в Unity repo"
+        required: false
+        default: ''
+      builder_request_id:
+        description: "ID заявки builder backend"
+        required: false
+        default: ''
+      zeywin_api_key:
+        description: "ZeyWin API key для этого package"
+        required: false
+        default: ''
+      admob_android_app_id:
+        description: "ID приложения AdMob Android"
+        required: false
+        default: ''
+      admob_android_banner_id:
+        description: "ID рекламного блока AdMob Banner"
+        required: false
+        default: ''
+      admob_android_interstitial_id:
+        description: "ID рекламного блока AdMob Interstitial"
+        required: false
+        default: ''
+      admob_android_rewarded_id:
+        description: "ID рекламного блока AdMob Rewarded"
+        required: false
+        default: ''
+      admob_android_rewarded_interstitial_id:
+        description: "ID рекламного блока AdMob Rewarded Interstitial"
+        required: false
+        default: ''
+      admob_android_native_id:
+        description: "ID рекламного блока AdMob Native"
+        required: false
+        default: ''
+      admob_android_app_open_id:
+        description: "ID рекламного блока AdMob App Open"
+        required: false
+        default: ''
+      build_format:
+        description: "APK тест, AAB релиз или APK+AAB вместе"
+        required: true
+        default: apk
+        type: choice
+        options:
+          - apk
+          - aab
+          - apk_aab
+      fast_build:
+        description: "Ускоренный режим: cache + ARM64 без 32-bit"
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      signing_profile:
+        description: "Профиль подписи Android"
+        required: true
+        default: playmax
+        type: choice
+        options:
+          - playmax
+          - slotspot
+          - playsocialgames
+      version_name:
+        description: "versionName"
+        required: false
+        default: '1'
+      version_code:
+        description: "versionCode"
+        required: false
+        default: '1'
+
+jobs:
+  release:
+    name: "Передать параметры в сборку Android"
+    uses: ./.github/workflows/build-apk.yml
+    with:
+      game_repository: ${{ github.event.client_payload.game_repository || inputs.game_repository }}
+      game_ref: ${{ github.event.client_payload.game_ref || inputs.game_ref }}
+      package_name: ${{ github.event.client_payload.package_name || inputs.package_name }}
+      app_name: ${{ github.event.client_payload.app_name || inputs.app_name }}
+      icon_png_path: ${{ github.event.client_payload.icon_png_path || inputs.icon_png_path }}
+      builder_request_id: ${{ github.event.client_payload.builder_request_id || inputs.builder_request_id }}
+      zeywin_api_key: ${{ github.event.client_payload.zeywin_api_key || inputs.zeywin_api_key }}
+      version_mode: manual
+      version_name: ${{ github.event.client_payload.version_name || inputs.version_name }}
+      version_code: ${{ github.event.client_payload.version_code || inputs.version_code }}
+      build_format: ${{ github.event.client_payload.build_format || inputs.build_format }}
+      fast_build: ${{ github.event.client_payload.fast_build || inputs.fast_build }}
+      signing_profile: ${{ github.event.client_payload.signing_profile || inputs.signing_profile }}
+      publish_to_google_play: 'false'
+      google_play_track: ${{ github.event.client_payload.google_play_track || 'production' }}
+      google_play_status: ${{ github.event.client_payload.google_play_status || 'draft' }}
+      require_google_play_upload: 'false'
+      admob_android_app_id: ${{ github.event.client_payload.admob_android_app_id || inputs.admob_android_app_id }}
+      admob_android_banner_id: ${{ github.event.client_payload.admob_android_banner_id || inputs.admob_android_banner_id }}
+      admob_android_interstitial_id: ${{ github.event.client_payload.admob_android_interstitial_id || inputs.admob_android_interstitial_id }}
+      admob_android_rewarded_id: ${{ github.event.client_payload.admob_android_rewarded_id || inputs.admob_android_rewarded_id }}
+      admob_android_rewarded_interstitial_id: ${{ github.event.client_payload.admob_android_rewarded_interstitial_id || inputs.admob_android_rewarded_interstitial_id }}
+      admob_android_native_id: ${{ github.event.client_payload.admob_android_native_id || inputs.admob_android_native_id }}
+      admob_android_app_open_id: ${{ github.event.client_payload.admob_android_app_open_id || inputs.admob_android_app_open_id }}
+    secrets: inherit
