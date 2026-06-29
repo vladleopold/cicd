@@ -93,15 +93,21 @@ def remove_conflicting_asset_sdks(assets, manifest_path):
             d = assets / folder
             if d.exists():
                 if folder == "GoogleMobileAds":
-                    # Keep Resources/ (GoogleMobileAdsSettings.asset) and .meta
+                    # Keep Resources/ (GoogleMobileAdsSettings.asset)
                     for child in list(d.iterdir()):
-                        if child.name != "Resources":
-                            if child.is_dir():
-                                shutil.rmtree(child)
-                            else:
-                                child.unlink()
-                            meta = pathlib.Path(str(child) + ".meta")
-                            if meta.exists(): meta.unlink()
+                        if child.name == "Resources" or child.suffix == ".meta":
+                            continue
+                        if child.is_dir():
+                            shutil.rmtree(child)
+                        else:
+                            child.unlink()
+                        meta = pathlib.Path(str(child) + ".meta")
+                        if meta.exists(): meta.unlink()
+                    # Clean up orphaned .meta files not paired with an existing file
+                    remaining = {p.stem for p in d.iterdir() if p.suffix != ".meta"}
+                    for p in list(d.iterdir()):
+                        if p.suffix == ".meta" and p.stem not in remaining:
+                            p.unlink()
                     print(f"  Cleaned Assets/{folder} (kept Resources/)")
                 else:
                     shutil.rmtree(d)
