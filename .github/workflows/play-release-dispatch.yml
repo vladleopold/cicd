@@ -64,6 +64,14 @@ on:
         description: "ID рекламного блока AdMob App Open"
         required: false
         default: ''
+      firebase_json_base64:
+        description: "Base64 google-services.json"
+        required: false
+        default: ''
+      firebase_file_name:
+        description: "Имя файла Firebase конфига"
+        required: false
+        default: 'google-services.json'
       build_format:
         description: "APK тест, AAB релиз или APK+AAB вместе"
         required: true
@@ -128,4 +136,6 @@ jobs:
       admob_android_rewarded_interstitial_id: ${{ github.event.client_payload.admob_android_rewarded_interstitial_id || inputs.admob_android_rewarded_interstitial_id }}
       admob_android_native_id: ${{ github.event.client_payload.admob_android_native_id || inputs.admob_android_native_id }}
       admob_android_app_open_id: ${{ github.event.client_payload.admob_android_app_open_id || inputs.admob_android_app_open_id }}
+      firebase_json_base64: ${{ github.event.client_payload.firebase_json_base64 || inputs.firebase_json_base64 }}
+      firebase_file_name: ${{ github.event.client_payload.firebase_file_name || inputs.firebase_file_name }}
     secrets: inherit

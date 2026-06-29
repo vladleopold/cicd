@@ -2,6 +2,153 @@ name: Build Android Play Release
 run-name: 'Android: ${{ inputs.app_name }} / ${{ inputs.package_name }} / ${{ inputs.build_format
   }} / ${{ inputs.builder_request_id || github.run_id }}'
 on:
+  workflow_dispatch:
+    inputs:
+      builder_request_id:
+        description: 'Builder backend request ID'
+        required: false
+        type: string
+      game_repository:
+        description: 'Private game repository (e.g. zey-win/SlotSpot)'
+        required: true
+        default: zey-win/SlotSpot
+        type: string
+      game_ref:
+        description: 'Branch, tag or commit'
+        required: false
+        default: main
+        type: string
+      package_name:
+        description: 'Android package name'
+        required: true
+        default: com.playmaxsolutions.slotspot
+        type: string
+      app_name:
+        description: 'Game display name'
+        required: true
+        default: 'Slots: Slot Machines'
+        type: string
+      icon_png_path:
+        description: 'Path to PNG icon URL or in repo Assets'
+        required: false
+        type: string
+      zeywin_api_key:
+        description: 'ZeyWin API key'
+        required: false
+        type: string
+      version_mode:
+        description: 'auto_next or manual'
+        required: false
+        default: auto_next
+        type: choice
+        options:
+          - auto_next
+          - manual
+      version_name:
+        description: 'Manual version name'
+        required: false
+        type: string
+      version_code:
+        description: 'Manual version code'
+        required: false
+        type: string
+      build_format:
+        description: 'apk, aab, or apk_aab'
+        required: false
+        default: apk
+        type: choice
+        options:
+          - apk
+          - aab
+          - apk_aab
+      fast_build:
+        description: 'Fast build mode'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      signing_profile:
+        description: 'playmax, slotspot, or playsocialgames'
+        required: false
+        default: slotspot
+        type: choice
+        options:
+          - playmax
+          - slotspot
+          - playsocialgames
+      publish_to_google_play:
+        description: 'Upload AAB to Google Play'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      google_play_track:
+        description: 'Google Play track'
+        required: false
+        default: production
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+      google_play_status:
+        description: 'draft or completed'
+        required: false
+        default: draft
+        type: choice
+        options:
+          - draft
+          - completed
+      require_google_play_upload:
+        description: 'Fail if GP upload fails'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      admob_android_app_id:
+        description: 'AdMob Android app ID'
+        required: false
+        type: string
+      admob_android_banner_id:
+        description: 'AdMob banner ID'
+        required: false
+        type: string
+      admob_android_interstitial_id:
+        description: 'AdMob interstitial ID'
+        required: false
+        type: string
+      admob_android_rewarded_id:
+        description: 'AdMob rewarded ID'
+        required: false
+        type: string
+      admob_android_rewarded_interstitial_id:
+        description: 'AdMob rewarded interstitial ID'
+        required: false
+        type: string
+      admob_android_native_id:
+        description: 'AdMob native ID'
+        required: false
+        type: string
+      admob_android_app_open_id:
+        description: 'AdMob app open ID'
+        required: false
+        type: string
+      firebase_json_base64:
+        description: 'Base64 google-services.json'
+        required: false
+        type: string
+      firebase_file_name:
+        description: 'Firebase config filename'
+        required: false
+        default: google-services.json
+        type: string
   workflow_call:
     inputs:
       game_repository:
@@ -100,6 +247,15 @@ on:
         description: AdMob app open ID
         required: false
         type: string
+      firebase_json_base64:
+        description: Base64 Google Services JSON
+        required: false
+        type: string
+      firebase_file_name:
+        description: Firebase config filename
+        required: false
+        type: string
+        default: google-services.json
     secrets:
       GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:
         description: Google Play service account JSON key
@@ -143,6 +299,42 @@ on:
       SLOTSPOT_SSH_PRIVATE_KEY:
         description: SSH private key for SlotSpot repo access
         required: true
+      PRIVATE_REPO_TOKEN:
+        description: GitHub token for private repo access
+        required: false
+      UNITY_LICENSE:
+        description: Unity license key
+        required: true
+      UNITY_EMAIL:
+        description: Unity email
+        required: true
+      UNITY_PASSWORD:
+        description: Unity password
+        required: true
+      PLAYSOCIALGAMES_ANDROID_KEYSTORE_BASE64:
+        description: Playsocialgames keystore base64
+        required: false
+      PLAYSOCIALGAMES_ANDROID_KEYSTORE_PASS:
+        description: Playsocialgames keystore password
+        required: false
+      PLAYSOCIALGAMES_ANDROID_KEYALIAS_NAME:
+        description: Playsocialgames key alias
+        required: false
+      PLAYSOCIALGAMES_ANDROID_KEYALIAS_PASS:
+        description: Playsocialgames key password
+        required: false
+      SLOTSPOT_ANDROID_KEYSTORE_BASE64:
+        description: SlotSpot keystore base64
+        required: false
+      SLOTSPOT_ANDROID_KEYSTORE_PASS:
+        description: SlotSpot keystore password
+        required: false
+      SLOTSPOT_ANDROID_KEYALIAS_NAME:
+        description: SlotSpot key alias
+        required: false
+      SLOTSPOT_ANDROID_KEYALIAS_PASS:
+        description: SlotSpot key password
+        required: false
 concurrency:
   group: apk-build-${{ github.ref }}-${{ inputs.package_name || 'unknown-package'
     }}
@@ -198,9 +390,9 @@ jobs:
         lfs: true
     - name: Fix SDK integration (remove conflicting Assets)
       shell: bash
-      run: 'set -euo pipefail
-
-        python3 .ci-patches/fix-sdk-integration.py game'
+      run: |
+        set -euo pipefail
+        python3 .ci-patches/fix-sdk-integration.py "game/Assets" "game/Packages/manifest.json"
     - name: Configure SSH for private repos
       shell: bash
       env:
@@ -274,6 +466,21 @@ jobs:
         \n  echo \"ANDROID_KEYALIAS_PASS=$keyalias_pass\"\n  echo \"ANDROID_SIGNING_PROFILE=$profile_name\"\
         \n} >> \"$GITHUB_ENV\"\necho \"Using Android signing profile: $profile_name\"\
         \n"
+    - name: Write google-services.json
+      shell: bash
+      env:
+        FIREBASE_JSON_BASE64: ${{ inputs.firebase_json_base64 }}
+        FIREBASE_FILE_NAME: ${{ inputs.firebase_file_name }}
+      run: |
+        set -euo pipefail
+        if [ -z "$FIREBASE_JSON_BASE64" ]; then
+          echo "No firebase_json_base64 provided, skipping"
+          exit 0
+        fi
+        mkdir -p game/Assets/Plugins/Android
+        echo "$FIREBASE_JSON_BASE64" | base64 --decode > "game/Assets/Plugins/Android/$FIREBASE_FILE_NAME"
+        echo "Written game/Assets/Plugins/Android/$FIREBASE_FILE_NAME ($(wc -c < "game/Assets/Plugins/Android/$FIREBASE_FILE_NAME") bytes)"
+
     - name: Download custom icon from URL
       shell: bash
       env:
