@@ -5,145 +5,144 @@ on:
   workflow_call:
     inputs:
       game_repository:
-        description: "Private game repository"
+        description: Private game repository
         required: true
         type: string
       game_ref:
-        description: "Branch, tag or commit of the game"
+        description: Branch, tag or commit of the game
         required: true
         type: string
       package_name:
-        description: "Android package name"
+        description: Android package name
         required: true
         type: string
       app_name:
-        description: "Game display name"
+        description: Game display name
         required: true
         type: string
       icon_png_path:
-        description: "Path to PNG icon in Unity repo"
+        description: Path to PNG icon in Unity repo
         required: false
         type: string
       builder_request_id:
-        description: "Builder backend request ID"
+        description: Builder backend request ID
         required: false
         type: string
       zeywin_api_key:
-        description: "ZeyWin API key for this package"
+        description: ZeyWin API key for this package
         required: false
         type: string
       version_mode:
-        description: "Version mode (auto/manual)"
+        description: Version mode (auto/manual)
         required: true
         type: string
       version_name:
-        description: "Version name"
+        description: Version name
         required: false
         type: string
       version_code:
-        description: "Version code"
+        description: Version code
         required: false
         type: string
       build_format:
-        description: "APK test, AAB release or APK+AAB"
+        description: APK test, AAB release or APK+AAB
         required: true
         type: string
       fast_build:
-        description: "Fast build mode"
+        description: Fast build mode
         required: true
         type: string
       signing_profile:
-        description: "Android signing profile"
+        description: Android signing profile
         required: true
         type: string
       publish_to_google_play:
-        description: "Publish to Google Play"
+        description: Publish to Google Play
         required: false
         type: string
       google_play_track:
-        description: "Google Play track"
+        description: Google Play track
         required: false
         type: string
       google_play_status:
-        description: "Google Play release status"
+        description: Google Play release status
         required: false
         type: string
       require_google_play_upload:
-        description: "Require Google Play upload"
+        description: Require Google Play upload
         required: false
         type: string
       admob_android_app_id:
-        description: "AdMob Android app ID"
+        description: AdMob Android app ID
         required: false
         type: string
       admob_android_banner_id:
-        description: "AdMob banner ID"
+        description: AdMob banner ID
         required: false
         type: string
       admob_android_interstitial_id:
-        description: "AdMob interstitial ID"
+        description: AdMob interstitial ID
         required: false
         type: string
       admob_android_rewarded_id:
-        description: "AdMob rewarded ID"
+        description: AdMob rewarded ID
         required: false
         type: string
       admob_android_rewarded_interstitial_id:
-        description: "AdMob rewarded interstitial ID"
+        description: AdMob rewarded interstitial ID
         required: false
         type: string
       admob_android_native_id:
-        description: "AdMob native ID"
+        description: AdMob native ID
         required: false
         type: string
       admob_android_app_open_id:
-        description: "AdMob app open ID"
+        description: AdMob app open ID
         required: false
         type: string
     secrets:
       GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:
-        description: "Google Play service account JSON key"
+        description: Google Play service account JSON key
         required: true
       ZEYWIN_API_KEY:
-        description: "ZeyWin API key"
+        description: ZeyWin API key
         required: true
       ANDROID_KEYSTORE_BASE64:
-        description: "Android keystore base64"
+        description: Android keystore base64
         required: true
       ANDROID_KEYSTORE_PASSWORD:
-        description: "Android keystore password"
+        description: Android keystore password
         required: true
       ANDROID_KEY_ALIAS:
-        description: "Android key alias"
+        description: Android key alias
         required: true
       ANDROID_KEY_PASSWORD:
-        description: "Android key password"
+        description: Android key password
         required: true
       ADMOB_ANDROID_APP_ID:
-        description: "AdMob Android app ID"
+        description: AdMob Android app ID
         required: true
       ADMOB_ANDROID_BANNER_ID:
-        description: "AdMob Android banner ID"
+        description: AdMob Android banner ID
         required: true
       ADMOB_ANDROID_INTERSTITIAL_ID:
-        description: "AdMob Android interstitial ID"
+        description: AdMob Android interstitial ID
         required: true
       ADMOB_ANDROID_REWARDED_ID:
-        description: "AdMob Android rewarded ID"
+        description: AdMob Android rewarded ID
         required: true
       ADMOB_ANDROID_REWARDED_INTERSTITIAL_ID:
-        description: "AdMob Android rewarded interstitial ID"
+        description: AdMob Android rewarded interstitial ID
         required: true
       ADMOB_ANDROID_NATIVE_ID:
-        description: "AdMob Android native ID"
+        description: AdMob Android native ID
         required: true
       ADMOB_ANDROID_APP_OPEN_ID:
-        description: "AdMob Android app open ID"
+        description: AdMob Android app open ID
         required: true
       SLOTSPOT_SSH_PRIVATE_KEY:
-        description: "SSH private key for SlotSpot repo access"
+        description: SSH private key for SlotSpot repo access
         required: true
-
 concurrency:
   group: apk-build-${{ github.ref }}-${{ inputs.package_name || 'unknown-package'
     }}
