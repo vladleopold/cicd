@@ -23,13 +23,14 @@ def main():
     fix_dotween_modules(assets)
     remove_pixel_perfect_package(manifest_path)
     patch_game_scripts(assets)
+    generate_build_script(assets)
     clear_cached_files(assets)
     print("\n" + "=" * 70)
     print("SDK Integration Fix Complete!")
     print("=" * 70)
 
 def remove_gma_editor_stubs(assets):
-    print("\n[1/7] Removing GoogleMobileAds/Editor stub files...")
+    print("\n[1/10] Removing GoogleMobileAds/Editor stub files...")
     gma_editor = assets / "GoogleMobileAds" / "Editor"
     if not gma_editor.exists():
         print("  No GoogleMobileAds/Editor found"); return
@@ -46,7 +47,7 @@ def remove_gma_editor_stubs(assets):
         print(f"  Removed GoogleMobileAds/Editor stub folder")
 
 def add_upm_packages(manifest_path, assets):
-    print("\n[2/7] Adding OpenUPM registry and UPM packages...")
+    print("\n[2/10] Adding OpenUPM registry and UPM packages...")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     registries = manifest.setdefault("scopedRegistries", [])
     if not any(r.get("url") == "https://package.openupm.com" for r in registries):
@@ -76,7 +77,7 @@ def add_upm_packages(manifest_path, assets):
         for p in added: print(f"  Added {p}")
 
 def remove_conflicting_asset_sdks(assets, manifest_path):
-    print("\n[3/7] Removing conflicting Assets-based SDK folders...")
+    print("\n[3/10] Removing conflicting Assets-based SDK folders...")
     try:
         deps = json.loads(manifest_path.read_text(encoding="utf-8")).get("dependencies", {})
     except: deps = {}
@@ -95,7 +96,7 @@ def remove_conflicting_asset_sdks(assets, manifest_path):
                 print(f"  Removed Assets/{folder}")
 
 def remove_sdk_examples(assets):
-    print("\n[4/7] Removing SDK examples and demos...")
+    print("\n[4/10] Removing SDK examples and demos...")
     for rel in ["FacebookSDK/Examples", "PlayFabSDK/Examples", "IronSource/Demo", "AppLovin/Demo", "MaxSdk/Demos", "GoogleMobileAds/Editor"]:
         d = assets / rel
         if d.exists():
@@ -104,7 +105,7 @@ def remove_sdk_examples(assets):
             print(f"  Removed Assets/{rel}")
 
 def fix_dll_metas(assets):
-    print("\n[5/7] Fixing .dll.meta files...")
+    print("\n[5/10] Fixing .dll.meta files...")
     template = textwrap.dedent("""\
     fileFormatVersion: 2
     guid: {guid}
@@ -138,7 +139,7 @@ def fix_dll_metas(assets):
     if fixed: print(f"  Fixed {fixed} .dll.meta files")
 
 def fix_dotween_modules(assets):
-    print("\n[6/7] Fixing DOTween/Modules .asmdef...")
+    print("\n[6/10] Fixing DOTween/Modules .asmdef...")
     for m in assets.rglob("DOTween/Modules"):
         if m.is_dir():
             for a in m.rglob("*.asmdef"):
@@ -146,7 +147,7 @@ def fix_dotween_modules(assets):
                 print(f"  Removed {a.relative_to(assets) if hasattr(a, 'relative_to') else a.name}")
 
 def patch_game_scripts(assets):
-    print("\n[7/9] Patching game scripts for Unity 6000 compatibility...")
+    print("\n[7/10] Patching game scripts for Unity 6000 compatibility...")
     for f in assets.glob("**/GameLocalNotifications.cs"):
         text = f.read_text(encoding="utf-8", errors="replace")
         if "using Unity.Notifications;" in text:
@@ -159,7 +160,7 @@ def patch_game_scripts(assets):
         print(f"  Removed {f.relative_to(assets.parent)}")
 
 def remove_pixel_perfect_package(manifest_path):
-    print("\n[8/9] Removing incompatible com.unity.2d.pixel-perfect package...")
+    print("\n[8/10] Removing incompatible com.unity.2d.pixel-perfect package...")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     deps = manifest.get("dependencies", {})
     if "com.unity.2d.pixel-perfect" in deps:
@@ -167,8 +168,87 @@ def remove_pixel_perfect_package(manifest_path):
         manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         print("  Removed com.unity.2d.pixel-perfect (incompatible with Unity 6000)")
 
+def generate_build_script(assets):
+    print("\n[9/10] Generating BuildGithubActionsApk build script...")
+    editor_dir = assets / "Editor"
+    editor_dir.mkdir(parents=True, exist_ok=True)
+    script = editor_dir / "BuildGithubActionsApk.cs"
+    script.write_text(textwrap.dedent("""\
+    using System;
+    using System.IO;
+    using System.Linq;
+    using UnityEditor;
+    using UnityEditor.Build.Reporting;
+    using UnityEngine;
+
+    public static class BuildGithubActionsApk
+    {
+        public static void BuildAndroid()
+        {
+            var outputPath = GetArg("apkOutputPath");
+            var pkgName = GetArg("androidPackageName");
+            var versionName = GetArg("androidVersionName");
+            var versionCode = GetArg("androidVersionCode");
+            var keystorePath = GetArg("androidKeystorePath");
+
+            if (!string.IsNullOrEmpty(pkgName))
+                PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, pkgName);
+            if (!string.IsNullOrEmpty(versionName))
+                PlayerSettings.bundleVersion = versionName;
+            if (!string.IsNullOrEmpty(versionCode) && int.TryParse(versionCode, out var vc))
+                PlayerSettings.Android.bundleVersionCode = vc;
+            if (!string.IsNullOrEmpty(keystorePath) && File.Exists(keystorePath))
+            {
+                PlayerSettings.Android.keystoreName = keystorePath;
+                PlayerSettings.Android.keystorePass = Environment.GetEnvironmentVariable("ANDROID_KEYSTORE_PASS") ?? "";
+                PlayerSettings.Android.keyaliasName = Environment.GetEnvironmentVariable("ANDROID_KEYALIAS_NAME") ?? "";
+                PlayerSettings.Android.keyaliasPass = Environment.GetEnvironmentVariable("ANDROID_KEYALIAS_PASS") ?? "";
+            }
+
+            var zeywinKey = GetArg("zeywinApiKey");
+            if (!string.IsNullOrEmpty(zeywinKey))
+                EditorPrefs.SetString("ZeyWinApiKey", zeywinKey);
+
+            var admobAppId = GetArg("admobAndroidAppId");
+            if (!string.IsNullOrEmpty(admobAppId))
+                EditorPrefs.SetString("AdMobAppId", admobAppId);
+
+            var options = new BuildPlayerOptions
+            {
+                scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray(),
+                locationPathName = outputPath ?? "build/Android/Android.apk",
+                target = BuildTarget.Android,
+                options = BuildOptions.None
+            };
+
+            var report = BuildPipeline.BuildPlayer(options);
+            if (report.summary.result != BuildResult.Succeeded)
+                throw new Exception("Android build failed: " + report.summary.result);
+        }
+
+        public static void BuildAndroidAppBundle()
+        {
+            EditorUserBuildSettings.buildAppBundle = true;
+            BuildAndroid();
+        }
+
+        private static string GetArg(string name)
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (var i = 0; i < args.Length - 1; i++)
+            {
+                if (args[i] == "-" + name && i + 1 < args.Length)
+                    return args[i + 1];
+            }
+            return string.Empty;
+        }
+    }
+    """), encoding="utf-8")
+    if script.exists():
+        print(f"  Generated {script.relative_to(assets.parent)}")
+
 def clear_cached_files(assets):
-    print("\n[9/9] Clearing cached files...")
+    print("[10/10] Clearing cached files...")
     root = assets.parent
     for d in [root/"Library/Artifacts", root/"Library/ScriptAssemblies", root/"Library/PackageCache", root/"Temp"]:
         if d.exists():
