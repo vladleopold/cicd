@@ -20,7 +20,7 @@ def main():
     remove_conflicting_asset_sdks(assets, manifest_path)
     remove_sdk_examples(assets)
     fix_dll_metas(assets)
-    fix_dotwen_modules(assets)
+    fix_dotween_modules(assets)
     remove_pixel_perfect_package(manifest_path)
     patch_game_scripts(assets)
     clear_cached_files(assets)
