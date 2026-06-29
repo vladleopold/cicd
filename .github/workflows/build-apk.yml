@@ -860,3 +860,5 @@ jobs:
         exit 1
 
         '
+'on':
+  workflow_call: {}
