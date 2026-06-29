@@ -20,7 +20,9 @@ def main():
     remove_conflicting_asset_sdks(assets, manifest_path)
     remove_sdk_examples(assets)
     fix_dll_metas(assets)
-    fix_dotween_modules(assets)
+    fix_dotwen_modules(assets)
+    remove_pixel_perfect_package(manifest_path)
+    patch_game_scripts(assets)
     clear_cached_files(assets)
     print("\n" + "=" * 70)
     print("SDK Integration Fix Complete!")
@@ -48,8 +50,14 @@ def add_upm_packages(manifest_path, assets):
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     registries = manifest.setdefault("scopedRegistries", [])
     if not any(r.get("url") == "https://package.openupm.com" for r in registries):
-        registries.append({"name": "OpenUPM", "url": "https://package.openupm.com", "scopes": ["com.google.ads.mobile", "com.google.external-dependency-manager"]})
+        registries.append({"name": "OpenUPM", "url": "https://package.openupm.com", "scopes": ["com.google.ads.mobile", "com.google.external-dependency-manager", "io.sentry.unity"]})
         print("  Added OpenUPM registry")
+    else:
+        for r in registries:
+            if r.get("url") == "https://package.openupm.com":
+                if "io.sentry.unity" not in r.get("scopes", []):
+                    r.setdefault("scopes", []).append("io.sentry.unity")
+                    print("  Added io.sentry.unity to OpenUPM scopes")
     deps = manifest.setdefault("dependencies", {})
     packages = {
         "com.google.ads.mobile": "11.2.0",
@@ -57,6 +65,8 @@ def add_upm_packages(manifest_path, assets):
         "com.zeywin.ads": "https://github.com/zey-win/ZeyWinAdsSDK-Unity.git#v3.9.37",
         "com.crashguard.sdk": "https://github.com/zey-win/CrashGuardSDK-Unity.git#2b3947155206bc445e2d6088ac51cdf2760f921d",
         "com.unity.textmeshpro": "3.0.9",
+        "com.unity.mobile.notifications": "2.3.2",
+        "io.sentry.unity": "2.2.1",
     }
     added = [f"{p}@{v}" for p, v in packages.items() if p not in deps]
     for p, v in packages.items():
@@ -135,8 +145,29 @@ def fix_dotween_modules(assets):
                 a.unlink(); (pathlib.Path(str(a)+".meta")).unlink(missing_ok=True)
                 print(f"  Removed {a.relative_to(assets) if hasattr(a, 'relative_to') else a.name}")
 
+def patch_game_scripts(assets):
+    print("\n[7/9] Patching game scripts for Unity 6000 compatibility...")
+    for pattern, search, replace in [
+        ("**/GameLocalNotifications.cs", "using Unity.Notifications;", "// using Unity.Notifications;"),
+        ("**/SentryCliConfiguration.cs", "using Sentry;", "// using Sentry;"),
+    ]:
+        for f in assets.glob(pattern):
+            text = f.read_text(encoding="utf-8", errors="replace")
+            if search in text:
+                f.write_text(text.replace(search, replace), encoding="utf-8")
+                print(f"  Patched {f.relative_to(assets.parent)}")
+
+def remove_pixel_perfect_package(manifest_path):
+    print("\n[8/9] Removing incompatible com.unity.2d.pixel-perfect package...")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    deps = manifest.get("dependencies", {})
+    if "com.unity.2d.pixel-perfect" in deps:
+        del deps["com.unity.2d.pixel-perfect"]
+        manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print("  Removed com.unity.2d.pixel-perfect (incompatible with Unity 6000)")
+
 def clear_cached_files(assets):
-    print("\n[7/7] Clearing cached files...")
+    print("\n[9/9] Clearing cached files...")
     root = assets.parent
     for d in [root/"Library/Artifacts", root/"Library/ScriptAssemblies", root/"Library/PackageCache", root/"Temp"]:
         if d.exists():
