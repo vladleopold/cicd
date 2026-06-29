@@ -81,6 +81,7 @@ def remove_conflicting_asset_sdks(assets, manifest_path):
     try:
         deps = json.loads(manifest_path.read_text(encoding="utf-8")).get("dependencies", {})
     except: deps = {}
+    GMA_RESOURCE_KEEP = assets / "GoogleMobileAds" / "Resources"
     for pkg, folder in [
         ("com.google.ads.mobile", "GoogleMobileAds"),
         ("com.google.external-dependency-manager", "ExternalDependencyManager"),
@@ -91,9 +92,21 @@ def remove_conflicting_asset_sdks(assets, manifest_path):
         if pkg in deps:
             d = assets / folder
             if d.exists():
-                shutil.rmtree(d)
-                (pathlib.Path(str(d) + ".meta")).unlink(missing_ok=True)
-                print(f"  Removed Assets/{folder}")
+                if folder == "GoogleMobileAds":
+                    # Keep Resources/ (GoogleMobileAdsSettings.asset) and .meta
+                    for child in list(d.iterdir()):
+                        if child.name != "Resources":
+                            if child.is_dir():
+                                shutil.rmtree(child)
+                            else:
+                                child.unlink()
+                            meta = pathlib.Path(str(child) + ".meta")
+                            if meta.exists(): meta.unlink()
+                    print(f"  Cleaned Assets/{folder} (kept Resources/)")
+                else:
+                    shutil.rmtree(d)
+                    (pathlib.Path(str(d) + ".meta")).unlink(missing_ok=True)
+                    print(f"  Removed Assets/{folder}")
 
 def remove_sdk_examples(assets):
     print("\n[4/10] Removing SDK examples and demos...")
@@ -177,12 +190,15 @@ def generate_build_script(assets):
     using System;
     using System.IO;
     using System.Linq;
+    using System.Reflection;
     using UnityEditor;
     using UnityEditor.Build.Reporting;
     using UnityEngine;
 
     public static class BuildGithubActionsApk
     {
+        private const string GmaSettingsAssetPath = "Assets/GoogleMobileAds/Resources/GoogleMobileAdsSettings.asset";
+
         public static void BuildAndroid()
         {
             var outputPath = GetArg("apkOutputPath");
@@ -209,9 +225,8 @@ def generate_build_script(assets):
             if (!string.IsNullOrEmpty(zeywinKey))
                 EditorPrefs.SetString("ZeyWinApiKey", zeywinKey);
 
-            var admobAppId = GetArg("admobAndroidAppId");
-            if (!string.IsNullOrEmpty(admobAppId))
-                EditorPrefs.SetString("AdMobAppId", admobAppId);
+            SetGmaAppId("admobAndroidAppId", "AdMobAndroidAppId");
+            SetGmaAppId("admobAndroidAppId", "AdMobAppId");
 
             var options = new BuildPlayerOptions
             {
@@ -224,6 +239,46 @@ def generate_build_script(assets):
             var report = BuildPipeline.BuildPlayer(options);
             if (report.summary.result != BuildResult.Succeeded)
                 throw new Exception("Android build failed: " + report.summary.result);
+        }
+
+        private static void SetGmaAppId(string argName, string propertyName)
+        {
+            var value = GetArg(argName);
+            if (string.IsNullOrEmpty(value))
+                return;
+
+            EditorPrefs.SetString(argName, value);
+
+            var settingsType = AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(a => a.GetTypes())
+                .FirstOrDefault(t => t.Name == "GoogleMobileAdsSettings"
+                    && t.Namespace == "GoogleMobileAds.Editor");
+
+            if (settingsType == null)
+                return;
+
+            var instanceProp = settingsType.GetProperty("Instance",
+                BindingFlags.Public | BindingFlags.Static);
+            if (instanceProp == null)
+                return;
+
+            var instance = instanceProp.GetValue(null);
+            if (instance == null)
+                return;
+
+            var prop = settingsType.GetProperty(propertyName,
+                BindingFlags.Public | BindingFlags.Instance);
+            if (prop != null && prop.CanWrite)
+            {
+                prop.SetValue(instance, value);
+                var saveMethod = settingsType.GetMethod("Save",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (saveMethod != null)
+                    saveMethod.Invoke(instance, null);
+                else
+                    EditorUtility.SetDirty((UnityEngine.Object)instance);
+                Debug.Log($"[BuildGithubActionsApk] Set {propertyName}={value}");
+            }
         }
 
         public static void BuildAndroidAppBundle()
