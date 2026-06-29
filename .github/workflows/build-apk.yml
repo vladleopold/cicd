@@ -628,6 +628,48 @@ jobs:
         \ in PackageCache.\");\n        }\n        else\n        {\n            Debug.Log($\"\
         [ZeyWinActions] No patch needed for {Path.GetFileName(targetFile)}.\");\n\
         \        }\n    }\n}\nCS\n"
+    - name: Prepare Unity compatibility patches
+      shell: bash
+      run: "set -euo pipefail\nmkdir -p game/Assets/Editor\ncat > game/Assets/Editor/ZeyWinCompatPatcher.cs\
+         <<'CS'\nusing System;\nusing System.IO;\n\
+         using UnityEditor;\nusing UnityEditor.Build;\nusing UnityEditor.Build.Reporting;\n\
+         using UnityEngine;\n\npublic sealed class ZeyWinCompatPatcher : IPreprocessBuildWithReport\n\
+         {\n    public int callbackOrder => -10002;\n\n    public void OnPreprocessBuild(BuildReport\
+         \ report)\n    {\n        if (report.summary.platform != BuildTarget.Android)\n\
+         \            return;\n\n        try\n        {\n            PatchUnityCompatibility();\n\
+         \        }\n        catch (Exception ex)\n        {\n            Debug.LogWarning(\"\
+         [ZeyWinActions] Compatibility patcher failed: \" + ex.Message);\n        }\n\
+         \    }\n\n    private static void PatchUnityCompatibility()\n    {\n        var\
+         \ projectRoot = Directory.GetParent(Application.dataPath)?.FullName;\n    \
+         \    if (string.IsNullOrEmpty(projectRoot))\n            return;\n\n       \
+         \ var cacheRoot = Path.Combine(projectRoot, \"Library\", \"PackageCache\");\n\
+         \        if (!Directory.Exists(cacheRoot))\n        {\n            Debug.Log(\"\
+         [ZeyWinActions] PackageCache not found, skipping compatibility patch.\");\n\
+         \            return;\n        }\n\n        PatchURPConverter(cacheRoot);\n \
+         \       PatchUnityNotifications(cacheRoot);\n        PatchSentryStaleFiles(cacheRoot);\n\
+         \    }\n\n    private static void PatchURPConverter(string cacheRoot)\n   \
+         \ {\n        var files = Directory.GetFiles(cacheRoot, \"U2DToURPPixelPerfectConverter.cs\"\
+         , SearchOption.AllDirectories);\n        foreach (var file in files)\n    \
+         \    {\n            File.Delete(file);\n            var meta = file + \".meta\"\
+         ;\n            if (File.Exists(meta))\n                File.Delete(meta);\n \
+         \           Debug.Log(\"[ZeyWinActions] Removed stale URP converter: \" + Path.GetFileName(file));\n\
+         \        }\n    }\n\n    private\
+         \ static void PatchUnityNotifications(string cacheRoot)\n    {\n        var\
+         \ files = Directory.GetFiles(cacheRoot, \"GameLocalNotifications.cs\", SearchOption.AllDirectories);\n\
+         \        foreach (var file in files)\n        {\n            var text = File.ReadAllText(file);\n\
+         \            var original = text;\n            text = text.Replace(\"using\
+         \ Unity.Notifications;\", \"// using Unity.Notifications;\");\n           \
+         \ if (text != original)\n            {\n                File.WriteAllText(file,\
+         \ text);\n                Debug.Log(\"[ZeyWinActions] Patched GameLocalNotifications:\
+         \ \" + Path.GetFileName(file));\n            }\n        }\n    }\n\n    private\
+         \ static void PatchSentryStaleFiles(string cacheRoot)\n    {\n        var files\
+         \ = Directory.GetFiles(cacheRoot, \"SentryCliConfiguration.cs\", SearchOption.AllDirectories);\n\
+         \        foreach (var file in files)\n        {\n            if (file.Contains(\"\
+         PackageCache\"))\n            {\n                File.Delete(file);\n      \
+         \          var meta = file + \".meta\";\n                if (File.Exists(meta))\
+         \ File.Delete(meta);\n                Debug.Log(\"[ZeyWinActions] Removed stale\
+         \ SentryCliConfiguration: \" + Path.GetFileName(file));\n            }\n   \
+         \     }\n    }\n}\nCS\n"
     - name: Resolve APK version
       id: resolve_version
       shell: bash
