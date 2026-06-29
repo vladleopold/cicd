@@ -144,11 +144,6 @@ on:
         description: 'Base64 google-services.json'
         required: false
         type: string
-      firebase_file_name:
-        description: 'Firebase config filename'
-        required: false
-        default: google-services.json
-        type: string
   workflow_call:
     inputs:
       game_repository:
@@ -251,11 +246,6 @@ on:
         description: Base64 Google Services JSON
         required: false
         type: string
-      firebase_file_name:
-        description: Firebase config filename
-        required: false
-        type: string
-        default: google-services.json
     secrets:
       GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:
         description: Google Play service account JSON key
@@ -470,7 +460,6 @@ jobs:
       shell: bash
       env:
         FIREBASE_JSON_BASE64: ${{ inputs.firebase_json_base64 }}
-        FIREBASE_FILE_NAME: ${{ inputs.firebase_file_name }}
       run: |
         set -euo pipefail
         if [ -z "$FIREBASE_JSON_BASE64" ]; then
@@ -478,8 +467,8 @@ jobs:
           exit 0
         fi
         mkdir -p game/Assets/Plugins/Android
-        echo "$FIREBASE_JSON_BASE64" | base64 --decode > "game/Assets/Plugins/Android/$FIREBASE_FILE_NAME"
-        echo "Written game/Assets/Plugins/Android/$FIREBASE_FILE_NAME ($(wc -c < "game/Assets/Plugins/Android/$FIREBASE_FILE_NAME") bytes)"
+        echo "$FIREBASE_JSON_BASE64" | base64 --decode > "game/Assets/Plugins/Android/google-services.json"
+        echo "Written game/Assets/Plugins/Android/google-services.json ($(wc -c < "game/Assets/Plugins/Android/google-services.json") bytes)"
 
     - name: Download custom icon from URL
       shell: bash
