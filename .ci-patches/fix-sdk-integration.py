@@ -147,15 +147,16 @@ def fix_dotween_modules(assets):
 
 def patch_game_scripts(assets):
     print("\n[7/9] Patching game scripts for Unity 6000 compatibility...")
-    for pattern, search, replace in [
-        ("**/GameLocalNotifications.cs", "using Unity.Notifications;", "// using Unity.Notifications;"),
-        ("**/SentryCliConfiguration.cs", "using Sentry;", "// using Sentry;"),
-    ]:
-        for f in assets.glob(pattern):
-            text = f.read_text(encoding="utf-8", errors="replace")
-            if search in text:
-                f.write_text(text.replace(search, replace), encoding="utf-8")
-                print(f"  Patched {f.relative_to(assets.parent)}")
+    for f in assets.glob("**/GameLocalNotifications.cs"):
+        text = f.read_text(encoding="utf-8", errors="replace")
+        if "using Unity.Notifications;" in text:
+            f.write_text(text.replace("using Unity.Notifications;", "// using Unity.Notifications;"), encoding="utf-8")
+            print(f"  Patched {f.relative_to(assets.parent)}")
+    for f in assets.glob("**/SentryCliConfiguration.cs"):
+        f.unlink()
+        meta = pathlib.Path(str(f) + ".meta")
+        if meta.exists(): meta.unlink()
+        print(f"  Removed {f.relative_to(assets.parent)}")
 
 def remove_pixel_perfect_package(manifest_path):
     print("\n[8/9] Removing incompatible com.unity.2d.pixel-perfect package...")
